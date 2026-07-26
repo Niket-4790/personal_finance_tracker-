@@ -1,0 +1,45 @@
+<div class="sidebar">
+    <div class="sidebar-brand">
+        <span class="brand-icon">₹</span>
+        <div>
+            <strong>personalFinanceTracker</strong>
+            <small>Personal Manager</small>
+        </div>
+    </div>
+    <AuthorizeView>
+        <Authorized>
+            <nav class="sidebar-nav">
+                <NavLink href="" Match="NavLinkMatch.All">Dashboard</NavLink>
+                <NavLink href="transactions">Transactions</NavLink>
+                @if (!context.User.IsInRole("Admin"))
+                {
+                    <NavLink href="accounts">Accounts</NavLink>
+                    <NavLink href="categories">Categories</NavLink>
+                }
+                <NavLink href="reports">Reports</NavLink>
+                @if (context.User.IsInRole("Admin"))
+                {
+                    <NavLink href="users">Users</NavLink>
+                }
+            </nav>
+
+            <div class="sidebar-user">
+                <div class="sidebar-user-info">
+                    <span>@context.User.Identity?.Name</span>
+                    <span class="role-badge @(context.User.IsInRole("Admin") ? "admin" : "user")">
+                        @(context.User.IsInRole("Admin") ? "Admin" : "User")
+                    </span>
+                </div>
+                <form action="Account/Logout" method="post">
+                    <button type="submit" class="btn btn-sm btn-secondary sidebar-logout">Logout</button>
+                </form>
+            </div>
+        </Authorized>
+        <NotAuthorized>
+            <nav class="sidebar-nav">
+                <NavLink href="Account/Login">Login</NavLink>
+                <NavLink href="Account/Register">Register</NavLink>
+            </nav>
+        </NotAuthorized>
+    </AuthorizeView>
+</div>

@@ -1,0 +1,23 @@
+<div class="summary-card @CssClass">
+    <div class="summary-label">@Label</div>
+    <div class="summary-value">@FormattedValue</div>
+    @if (!string.IsNullOrEmpty(Subtitle))
+    {
+        <div class="summary-subtitle">@Subtitle</div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public decimal Value { get; set; }
+    [Parameter] public string CssClass { get; set; } = string.Empty;
+    [Parameter] public string Subtitle { get; set; } = string.Empty;
+    [Parameter] public bool IsCurrency { get; set; } = true;
+    [Parameter] public bool IsPercent { get; set; }
+
+    private string FormattedValue => IsPercent
+        ? $"{Value:N1}%"
+        : IsCurrency
+            ? Value.ToString("C")
+            : Value.ToString("N0");
+}

@@ -1,0 +1,142 @@
+@page "/reports"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@using System.Security.Claims
+@inject IReportService ReportService
+
+<PageTitle>Reports - FinanceTrack</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1>Reports</h1>
+        <p class="page-subtitle">@(isAdmin ? "Monthly totals and category analysis across every user" : "Monthly totals, savings rate, and category analysis")</p>
+    </div>
+</div>
+
+@if (loading)
+{
+    <div class="loading">Loading reports...</div>
+}
+else if (!string.IsNullOrEmpty(error))
+{
+    <div class="alert alert-error">@error</div>
+}
+else
+{
+    <div class="summary-grid compact">
+        @if (!isAdmin)
+        {
+            <SummaryCard Label="Current Savings Rate" Value="@savingsRate" IsCurrency="false" IsPercent="true" CssClass="savings" />
+        }
+        <SummaryCard Label="Best Net Month" Value="@bestMonth.NetSavings" Subtitle="@($"{bestMonth.MonthName} {bestMonth.Year}")" CssClass="income" />
+        <SummaryCard Label="Avg Monthly Expense" Value="@avgExpense" CssClass="expense" Subtitle="Last 6 months" />
+    </div>
+
+    <MonthlyChart Reports="@monthlyReports" Title="@(isAdmin ? "Income vs Expenses (6 Months, All Users)" : "Income vs Expenses (6 Months)")" />
+
+    <div class="panel">
+        <h3>Monthly Breakdown</h3>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Month</th>
+                    <th>Income</th>
+                    <th>Expenses</th>
+                    <th>Net Savings</th>
+                    <th>Savings Rate</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in monthlyReports)
+                {
+                    var rate = row.TotalIncome > 0 ? (row.NetSavings / row.TotalIncome) * 100 : 0;
+                    <tr>
+                        <td>@row.MonthName @row.Year</td>
+                        <td class="text-income">@row.TotalIncome.ToString("C")</td>
+                        <td class="text-expense">@row.TotalExpenses.ToString("C")</td>
+                        <td class="@(row.NetSavings >= 0 ? "text-income" : "text-expense")">@row.NetSavings.ToString("C")</td>
+                        <td>@rate.ToString("F1")%</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="panel">
+        <h3>Category Breakdown (Current Month@(isAdmin ? ", All Users" : ""))</h3>
+        @if (categoryBreakdown.Any())
+        {
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Type</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in categoryBreakdown)
+                    {
+                        <tr>
+                            <td><span class="category-dot" style="background:@item.CategoryColor"></span> @item.CategoryName</td>
+                            <td>@item.CategoryType</td>
+                            <td>@item.TotalAmount.ToString("C")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <div class="empty-state">No category data for the current month.</div>
+        }
+    </div>
+}
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthStateTask { get; set; }
+
+    private bool isAdmin;
+
+    private bool loading = true;
+    private string? error;
+    private decimal savingsRate;
+    private decimal avgExpense;
+    private MonthlyReport bestMonth = new();
+    private List<MonthlyReport> monthlyReports = [];
+    private List<CategoryBreakdown> categoryBreakdown = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authState = await AuthStateTask!;
+            isAdmin = authState.User.IsInRole("Admin");
+
+            if (isAdmin)
+            {
+                monthlyReports = (await ReportService.GetMonthlyReportsAllUsersAsync(6)).ToList();
+                categoryBreakdown = (await ReportService.GetCategoryBreakdownAllUsersAsync()).ToList();
+            }
+            else
+            {
+                var userId = int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+                monthlyReports = (await ReportService.GetMonthlyReportsAsync(userId, 6)).ToList();
+                categoryBreakdown = (await ReportService.GetCategoryBreakdownAsync(userId)).ToList();
+                savingsRate = await ReportService.GetSavingsRateAsync(userId);
+            }
+
+            avgExpense = monthlyReports.Any() ? monthlyReports.Average(r => r.TotalExpenses) : 0;
+            bestMonth = monthlyReports.OrderByDescending(r => r.NetSavings).FirstOrDefault() ?? new MonthlyReport();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+}

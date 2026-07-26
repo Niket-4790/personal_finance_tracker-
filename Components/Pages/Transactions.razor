@@ -1,0 +1,219 @@
+@page "/transactions"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@using System.Security.Claims
+@inject ITransactionService TransactionService
+@inject IAccountService AccountService
+@inject ICategoryService CategoryService
+
+<PageTitle>Transactions - FinanceTrack</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1>Transactions</h1>
+        <p class="page-subtitle">@(isAdmin ? "Every user's transactions, read-only" : "Track income and expenses")</p>
+    </div>
+    @if (!isAdmin)
+    {
+        <button class="btn btn-primary" @onclick="ShowAddForm">+ Add Transaction</button>
+    }
+</div>
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <div class="alert alert-success">@message</div>
+}
+@if (!string.IsNullOrEmpty(error))
+{
+    <div class="alert alert-error">@error</div>
+}
+
+@if (showForm)
+{
+    <div class="panel form-panel">
+        <h3>@(editingId.HasValue ? "Edit Transaction" : "New Transaction")</h3>
+        <TransactionForm Model="formModel"
+                         Accounts="accounts"
+                         Categories="categories"
+                         OnSave="SaveTransaction"
+                         OnCancel="CancelForm"
+                         ShowCancel="true"
+                         SubmitLabel="@(editingId.HasValue ? "Update" : "Create")" />
+    </div>
+}
+
+<div class="panel">
+    @if (loading)
+    {
+        <div class="loading">Loading transactions...</div>
+    }
+    else if (transactions.Any())
+    {
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    @if (isAdmin)
+                    {
+                        <th>User</th>
+                    }
+                    <th>Type</th>
+                    <th>Description</th>
+                    <th>Category</th>
+                    <th>Account</th>
+                    <th>Amount</th>
+                    @if (!isAdmin)
+                    {
+                        <th></th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var tx in transactions)
+                {
+                    <tr>
+                        <td>@tx.TransactionDate.ToString("MMM dd, yyyy")</td>
+                        @if (isAdmin)
+                        {
+                            <td>@tx.UserName</td>
+                        }
+                        <td><span class="badge @(tx.TransactionType == "Income" ? "badge-income" : "badge-expense")">@tx.TransactionType</span></td>
+                        <td>@(string.IsNullOrWhiteSpace(tx.Description) ? "—" : tx.Description)</td>
+                        <td><span class="badge" style="background:@tx.CategoryColor">@tx.CategoryName</span></td>
+                        <td>@tx.AccountName</td>
+                        <td class="@(tx.TransactionType == "Income" ? "text-income" : "text-expense")">
+                            @(tx.TransactionType == "Income" ? "+" : "-")@tx.Amount.ToString("C")
+                        </td>
+                        @if (!isAdmin)
+                        {
+                            <td class="actions">
+                                <button class="btn btn-sm" @onclick="() => EditTransaction(tx)">Edit</button>
+                                <button class="btn btn-sm btn-danger" @onclick="() => DeleteTransaction(tx.Id)">Delete</button>
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <div class="empty-state">No transactions found@(isAdmin ? "." : ". Click \"Add Transaction\" to get started.")</div>
+    }
+</div>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthStateTask { get; set; }
+
+    private int currentUserId;
+    private bool isAdmin;
+
+    private bool loading = true;
+    private bool showForm;
+    private int? editingId;
+    private string? message;
+    private string? error;
+    private TransactionFormModel formModel = new();
+    private List<Transaction> transactions = [];
+    private List<Account> accounts = [];
+    private List<Category> categories = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateTask!;
+        isAdmin = authState.User.IsInRole("Admin");
+        if (!isAdmin)
+        {
+            currentUserId = int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        }
+
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        loading = true;
+        error = null;
+        try
+        {
+            if (isAdmin)
+            {
+                transactions = (await TransactionService.GetAllTransactionsForAdminAsync()).ToList();
+            }
+            else
+            {
+                transactions = (await TransactionService.GetAllTransactionsAsync(currentUserId)).ToList();
+                accounts = (await AccountService.GetAllAccountsAsync(currentUserId)).ToList();
+                categories = (await CategoryService.GetAllCategoriesAsync(currentUserId)).ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void ShowAddForm()
+    {
+        editingId = null;
+        formModel = new TransactionFormModel { TransactionDate = DateTime.Today };
+        showForm = true;
+        message = null;
+    }
+
+    private void EditTransaction(Transaction tx)
+    {
+        editingId = tx.Id;
+        formModel = new TransactionFormModel
+        {
+            Id = tx.Id,
+            AccountId = tx.AccountId,
+            CategoryId = tx.CategoryId,
+            Amount = tx.Amount,
+            Description = tx.Description ?? string.Empty,
+            TransactionDate = tx.TransactionDate,
+            TransactionType = tx.TransactionType
+        };
+        showForm = true;
+        message = null;
+    }
+
+    private async Task SaveTransaction(TransactionFormModel model)
+    {
+        if (editingId.HasValue)
+        {
+            model.Id = editingId.Value;
+            await TransactionService.UpdateTransactionAsync(model, currentUserId);
+            message = "Transaction updated successfully.";
+        }
+        else
+        {
+            await TransactionService.CreateTransactionAsync(model, currentUserId);
+            message = "Transaction created successfully.";
+        }
+
+        showForm = false;
+        await LoadData();
+    }
+
+    private void CancelForm() => showForm = false;
+
+    private async Task DeleteTransaction(int id)
+    {
+        try
+        {
+            await TransactionService.DeleteTransactionAsync(id, currentUserId);
+            message = "Transaction deleted.";
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+}

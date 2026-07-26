@@ -1,0 +1,141 @@
+@page "/categories"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "User")]
+@using System.Security.Claims
+@inject ICategoryService CategoryService
+
+<PageTitle>Categories - FinanceTrack</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1>Categories</h1>
+        <p class="page-subtitle">Organize income and expense types</p>
+    </div>
+    <button class="btn btn-primary" @onclick="() => showForm = true">+ Add Category</button>
+</div>
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <div class="alert alert-success">@message</div>
+}
+@if (!string.IsNullOrEmpty(error))
+{
+    <div class="alert alert-error">@error</div>
+}
+
+@if (showForm)
+{
+    <div class="panel form-panel">
+        <h3>New Category</h3>
+        <EditForm Model="newCategory" OnValidSubmit="SaveCategory">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Name</label>
+                    <InputText @bind-Value="newCategory.Name" />
+                </div>
+                <div class="form-group">
+                    <label>Type</label>
+                    <InputSelect @bind-Value="newCategory.Type">
+                        <option value="Income">Income</option>
+                        <option value="Expense">Expense</option>
+                    </InputSelect>
+                </div>
+                <div class="form-group">
+                    <label>Color</label>
+                    <input type="color" @bind="newCategory.Color" class="color-picker" />
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Create</button>
+                <button type="button" class="btn btn-secondary" @onclick="() => showForm = false">Cancel</button>
+            </div>
+        </EditForm>
+    </div>
+}
+
+<div class="dashboard-grid">
+    <div class="panel">
+        <h3>Income Categories</h3>
+        <table class="data-table">
+            <thead>
+                <tr><th>Name</th><th>Color</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var cat in categories.Where(c => c.Type == "Income"))
+                {
+                    <tr>
+                        <td>@cat.Name</td>
+                        <td><span class="category-dot large" style="background:@cat.Color"></span> @cat.Color</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="panel">
+        <h3>Expense Categories</h3>
+        <table class="data-table">
+            <thead>
+                <tr><th>Name</th><th>Color</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var cat in categories.Where(c => c.Type == "Expense"))
+                {
+                    <tr>
+                        <td>@cat.Name</td>
+                        <td><span class="category-dot large" style="background:@cat.Color"></span> @cat.Color</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthStateTask { get; set; }
+
+    private int currentUserId;
+
+    private bool showForm;
+    private string? message;
+    private string? error;
+    private Category newCategory = new() { Type = "Expense", Color = "#6366f1" };
+    private List<Category> categories = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateTask!;
+        currentUserId = int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        error = null;
+        try
+        {
+            categories = (await CategoryService.GetAllCategoriesAsync(currentUserId)).ToList();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+
+    private async Task SaveCategory()
+    {
+        try
+        {
+            await CategoryService.CreateCategoryAsync(newCategory, currentUserId);
+            message = "Category created successfully.";
+            showForm = false;
+            newCategory = new Category { Type = "Expense", Color = "#6366f1" };
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+}

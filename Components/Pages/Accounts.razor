@@ -1,0 +1,192 @@
+@page "/accounts"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "User")]
+@using System.Security.Claims
+@inject IAccountService AccountService
+
+<PageTitle>Accounts - FinanceTrack</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1>Accounts</h1>
+        <p class="page-subtitle">Manage your bank accounts and wallets</p>
+    </div>
+    <button class="btn btn-primary" @onclick="ShowAddForm">+ Add Account</button>
+</div>
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <div class="alert alert-success">@message</div>
+}
+@if (!string.IsNullOrEmpty(error))
+{
+    <div class="alert alert-error">@error</div>
+}
+
+@if (showForm)
+{
+    <div class="panel form-panel">
+        <h3>@(editingId.HasValue ? "Edit Account" : "New Account")</h3>
+        <EditForm Model="formModel" OnValidSubmit="SaveAccount">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Account Name</label>
+                    <InputText @bind-Value="formModel.Name" />
+                </div>
+                <div class="form-group">
+                    <label>Account Type</label>
+                    <InputSelect @bind-Value="formModel.AccountType">
+                        <option value="Checking">Checking</option>
+                        <option value="Savings">Savings</option>
+                        <option value="Credit">Credit</option>
+                        <option value="Investment">Investment</option>
+                    </InputSelect>
+                </div>
+                @if (!editingId.HasValue)
+                {
+                    <div class="form-group">
+                        <label>Initial Balance</label>
+                        <InputNumber @bind-Value="formModel.InitialBalance" step="0.01" />
+                    </div>
+                }
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">@(editingId.HasValue ? "Update" : "Create")</button>
+                <button type="button" class="btn btn-secondary" @onclick="CancelForm">Cancel</button>
+            </div>
+        </EditForm>
+    </div>
+}
+
+<div class="account-grid">
+    @if (loading)
+    {
+        <div class="loading">Loading accounts...</div>
+    }
+    else if (accounts.Any())
+    {
+        @foreach (var account in accounts)
+        {
+            <div class="account-card">
+                <div class="account-card-header">
+                    <span class="account-type">@account.AccountType</span>
+                    <div class="actions">
+                        <button class="btn btn-sm" @onclick="() => EditAccount(account)">Edit</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteAccount(account.Id)">Delete</button>
+                    </div>
+                </div>
+                <h3>@account.Name</h3>
+                <div class="account-balance @(account.Balance >= 0 ? "positive" : "negative")">
+                    @account.Balance.ToString("C")
+                </div>
+                <small>Created @account.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</small>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="empty-state">No accounts yet. Add your first account to start tracking.</div>
+    }
+</div>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthStateTask { get; set; }
+
+    private int currentUserId;
+
+    private bool loading = true;
+    private bool showForm;
+    private int? editingId;
+    private string? message;
+    private string? error;
+    private AccountFormModel formModel = new();
+    private List<Account> accounts = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateTask!;
+        currentUserId = int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        loading = true;
+        error = null;
+        try
+        {
+            accounts = (await AccountService.GetAllAccountsAsync(currentUserId)).ToList();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void ShowAddForm()
+    {
+        editingId = null;
+        formModel = new AccountFormModel();
+        showForm = true;
+        message = null;
+    }
+
+    private void EditAccount(Account account)
+    {
+        editingId = account.Id;
+        formModel = new AccountFormModel
+        {
+            Id = account.Id,
+            Name = account.Name,
+            AccountType = account.AccountType
+        };
+        showForm = true;
+        message = null;
+    }
+
+    private async Task SaveAccount()
+    {
+        try
+        {
+            if (editingId.HasValue)
+            {
+                formModel.Id = editingId.Value;
+                await AccountService.UpdateAccountAsync(formModel, currentUserId);
+                message = "Account updated successfully.";
+            }
+            else
+            {
+                await AccountService.CreateAccountAsync(formModel, currentUserId);
+                message = "Account created successfully.";
+            }
+
+            showForm = false;
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+
+    private void CancelForm() => showForm = false;
+
+    private async Task DeleteAccount(int id)
+    {
+        try
+        {
+            await AccountService.DeleteAccountAsync(id, currentUserId);
+            message = "Account deleted.";
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+}

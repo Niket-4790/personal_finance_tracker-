@@ -1,0 +1,148 @@
+@page "/users"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+@using System.Security.Claims
+@inject IUserService UserService
+
+<PageTitle>Users - FinanceTrack</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1>Users</h1>
+        <p class="page-subtitle">Manage who can sign in and what they can do</p>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <div class="alert alert-success">@message</div>
+}
+@if (!string.IsNullOrEmpty(error))
+{
+    <div class="alert alert-error">@error</div>
+}
+
+<div class="panel">
+    @if (loading)
+    {
+        <div class="loading">Loading users...</div>
+    }
+    else
+    {
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Joined</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in users)
+                {
+                    <tr>
+                        <td>@user.Name</td>
+                        <td>@user.Email</td>
+                        <td>
+                            @if (user.Id == currentUserId)
+                            {
+                                <span class="role-badge @(user.Role == "Admin" ? "admin" : "user")" title="You can't change your own role">@user.Role</span>
+                            }
+                            else
+                            {
+                                <select class="form-select-inline" value="@user.Role" @onchange="e => ChangeRole(user, e.Value?.ToString() ?? user.Role)">
+                                    <option value="User">User</option>
+                                    <option value="Admin">Admin</option>
+                                </select>
+                            }
+                        </td>
+                        <td>
+                            @if (user.IsActive)
+                            {
+                                <span class="badge badge-income">Active</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-expense">Inactive</span>
+                            }
+                        </td>
+                        <td>@user.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</td>
+                        <td class="actions">
+                            <button class="btn btn-sm" @onclick="() => ToggleActive(user)">
+                                @(user.IsActive ? "Deactivate" : "Activate")
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthStateTask { get; set; }
+
+    private int currentUserId;
+    private bool loading = true;
+    private string? message;
+    private string? error;
+    private List<AppUser> users = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateTask!;
+        currentUserId = int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        loading = true;
+        error = null;
+        try
+        {
+            users = (await UserService.GetAllUsersAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task ChangeRole(AppUser user, string newRole)
+    {
+        try
+        {
+            await UserService.SetRoleAsync(user.Id, newRole);
+            message = $"{user.Name}'s role updated to {newRole}.";
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            await LoadData();
+        }
+    }
+
+    private async Task ToggleActive(AppUser user)
+    {
+        try
+        {
+            await UserService.SetActiveAsync(user.Id, !user.IsActive);
+            message = $"{user.Name} {(user.IsActive ? "deactivated" : "activated")}.";
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+}

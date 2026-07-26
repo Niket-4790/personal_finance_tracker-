@@ -1,0 +1,274 @@
+@page "/"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@using System.Security.Claims
+@inject IReportService ReportService
+@inject ITransactionService TransactionService
+
+<PageTitle>Dashboard - FinanceTrack</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1>Dashboard</h1>
+        <p class="page-subtitle">@(isAdmin ? "System-wide overview" : "Your personal finance overview")</p>
+    </div>
+</div>
+
+@if (loading)
+{
+    <div class="loading">Loading dashboard...</div>
+}
+else if (!string.IsNullOrEmpty(error))
+{
+    <div class="alert alert-error">@error</div>
+}
+else if (isAdmin)
+{
+    <div class="summary-grid">
+        <SummaryCard Label="Active Users" Value="@systemSummary.TotalUsers" IsCurrency="false" CssClass="balance" />
+        <SummaryCard Label="Total Balance (All Users)" Value="@systemSummary.TotalBalance" CssClass="balance" />
+        <SummaryCard Label="Monthly Income (All)" Value="@systemSummary.MonthlyIncome" CssClass="income" />
+        <SummaryCard Label="Monthly Expenses (All)" Value="@systemSummary.MonthlyExpenses" CssClass="expense" />
+        <SummaryCard Label="Net This Month (All)" Value="@systemSummary.NetMonthly" CssClass="@(systemSummary.NetMonthly >= 0 ? "income" : "expense")" />
+        <SummaryCard Label="Transactions" Value="@systemSummary.TransactionCount" IsCurrency="false" Subtitle="This month, all users" />
+    </div>
+
+    <div class="dashboard-grid">
+        <MonthlyChart Reports="@monthlyReports" Title="Last 6 Months (All Users)" />
+
+        <div class="panel">
+            <h3>Spending by Category (All Users)</h3>
+            @if (categoryBreakdown.Any())
+            {
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Amount</th>
+                            <th>Share</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{
+                            var total = categoryBreakdown.Sum(c => c.TotalAmount);
+                        }
+                        @foreach (var item in categoryBreakdown)
+                        {
+                            var share = total > 0 ? (item.TotalAmount / total) * 100 : 0;
+                            <tr>
+                                <td>
+                                    <span class="category-dot" style="background:@item.CategoryColor"></span>
+                                    @item.CategoryName
+                                </td>
+                                <td>@item.TotalAmount.ToString("C")</td>
+                                <td>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width:@share.ToString("F0")%; background:@item.CategoryColor"></div>
+                                    </div>
+                                    <small>@share.ToString("F0")%</small>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            else
+            {
+                <div class="empty-state">No category data for this month.</div>
+            }
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-header">
+            <h3>Recent Transactions (All Users)</h3>
+            <a href="transactions" class="btn btn-link">View all</a>
+        </div>
+        @if (recentTransactions.Any())
+        {
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>User</th>
+                        <th>Description</th>
+                        <th>Category</th>
+                        <th>Account</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var tx in recentTransactions)
+                    {
+                        <tr>
+                            <td>@tx.TransactionDate.ToString("MMM dd, yyyy")</td>
+                            <td>@tx.UserName</td>
+                            <td>@(string.IsNullOrWhiteSpace(tx.Description) ? "—" : tx.Description)</td>
+                            <td>
+                                <span class="badge" style="background:@tx.CategoryColor">@tx.CategoryName</span>
+                            </td>
+                            <td>@tx.AccountName</td>
+                            <td class="@(tx.TransactionType == "Income" ? "text-income" : "text-expense")">
+                                @(tx.TransactionType == "Income" ? "+" : "-")@tx.Amount.ToString("C")
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <div class="empty-state">No transactions yet.</div>
+        }
+    </div>
+}
+else
+{
+    <div class="summary-grid">
+        <SummaryCard Label="Total Balance" Value="@summary.TotalBalance" CssClass="balance" />
+        <SummaryCard Label="Monthly Income" Value="@summary.MonthlyIncome" CssClass="income" />
+        <SummaryCard Label="Monthly Expenses" Value="@summary.MonthlyExpenses" CssClass="expense" />
+        <SummaryCard Label="Net This Month" Value="@summary.NetMonthly" CssClass="@(summary.NetMonthly >= 0 ? "income" : "expense")" />
+        <SummaryCard Label="Savings Rate" Value="@savingsRate" IsCurrency="false" IsPercent="true" CssClass="savings" Subtitle="Current month" />
+        <SummaryCard Label="Transactions" Value="@summary.TransactionCount" IsCurrency="false" Subtitle="This month" />
+    </div>
+
+    <div class="dashboard-grid">
+        <MonthlyChart Reports="@monthlyReports" Title="Last 6 Months" />
+
+        <div class="panel">
+            <h3>Spending by Category</h3>
+            @if (categoryBreakdown.Any())
+            {
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Amount</th>
+                            <th>Share</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{
+                            var total = categoryBreakdown.Sum(c => c.TotalAmount);
+                        }
+                        @foreach (var item in categoryBreakdown)
+                        {
+                            var share = total > 0 ? (item.TotalAmount / total) * 100 : 0;
+                            <tr>
+                                <td>
+                                    <span class="category-dot" style="background:@item.CategoryColor"></span>
+                                    @item.CategoryName
+                                </td>
+                                <td>@item.TotalAmount.ToString("C")</td>
+                                <td>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width:@share.ToString("F0")%; background:@item.CategoryColor"></div>
+                                    </div>
+                                    <small>@share.ToString("F0")%</small>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            else
+            {
+                <div class="empty-state">No category data for this month.</div>
+            }
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-header">
+            <h3>Recent Transactions</h3>
+            <a href="transactions" class="btn btn-link">View all</a>
+        </div>
+        @if (recentTransactions.Any())
+        {
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Category</th>
+                        <th>Account</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var tx in recentTransactions)
+                    {
+                        <tr>
+                            <td>@tx.TransactionDate.ToString("MMM dd, yyyy")</td>
+                            <td>@(string.IsNullOrWhiteSpace(tx.Description) ? "—" : tx.Description)</td>
+                            <td>
+                                <span class="badge" style="background:@tx.CategoryColor">@tx.CategoryName</span>
+                            </td>
+                            <td>@tx.AccountName</td>
+                            <td class="@(tx.TransactionType == "Income" ? "text-income" : "text-expense")">
+                                @(tx.TransactionType == "Income" ? "+" : "-")@tx.Amount.ToString("C")
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <div class="empty-state">No transactions yet. <a href="transactions">Add your first one</a>.</div>
+        }
+    </div>
+}
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthStateTask { get; set; }
+
+    private bool loading = true;
+    private bool isAdmin;
+    private string? error;
+
+    private DashboardSummary summary = new();
+    private decimal savingsRate;
+
+    private SystemSummary systemSummary = new();
+
+    private List<MonthlyReport> monthlyReports = [];
+    private List<CategoryBreakdown> categoryBreakdown = [];
+    private List<Transaction> recentTransactions = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authState = await AuthStateTask!;
+            isAdmin = authState.User.IsInRole("Admin");
+
+            if (isAdmin)
+            {
+                systemSummary = await ReportService.GetSystemSummaryAsync();
+                monthlyReports = (await ReportService.GetMonthlyReportsAllUsersAsync(6)).ToList();
+                categoryBreakdown = (await ReportService.GetCategoryBreakdownAllUsersAsync()).ToList();
+                recentTransactions = (await TransactionService.GetAllTransactionsForAdminAsync()).Take(8).ToList();
+            }
+            else
+            {
+                var userId = int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+                summary = await ReportService.GetDashboardSummaryAsync(userId);
+                savingsRate = await ReportService.GetSavingsRateAsync(userId);
+                monthlyReports = (await ReportService.GetMonthlyReportsAsync(userId, 6)).ToList();
+                categoryBreakdown = (await ReportService.GetCategoryBreakdownAsync(userId)).ToList();
+                recentTransactions = (await TransactionService.GetAllTransactionsAsync(userId)).Take(8).ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            error = $"Could not load dashboard. Ensure SQL Server is running and database scripts have been executed. Details: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+}

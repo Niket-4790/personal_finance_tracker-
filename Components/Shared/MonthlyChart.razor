@@ -1,0 +1,38 @@
+@if (Reports.Any())
+{
+    <div class="chart-panel">
+        <h3>@Title</h3>
+        <div class="bar-chart">
+            @foreach (var item in Reports)
+            {
+                var maxValue = Reports.Max(r => Math.Max(r.TotalIncome, r.TotalExpenses));
+                var incomeWidth = maxValue > 0 ? (double)(item.TotalIncome / maxValue) * 100 : 0;
+                var expenseWidth = maxValue > 0 ? (double)(item.TotalExpenses / maxValue) * 100 : 0;
+
+                <div class="chart-row">
+                    <div class="chart-label">@item.MonthName.Substring(0, 3) @item.Year</div>
+                    <div class="chart-bars">
+                        <div class="bar income" style="width: @(incomeWidth.ToString("F1"))%" title="Income: @item.TotalIncome.ToString("C")"></div>
+                        <div class="bar expense" style="width: @(expenseWidth.ToString("F1"))%" title="Expenses: @item.TotalExpenses.ToString("C")"></div>
+                    </div>
+                    <div class="chart-net @(item.NetSavings >= 0 ? "positive" : "negative")">
+                        @item.NetSavings.ToString("C")
+                    </div>
+                </div>
+            }
+        </div>
+        <div class="chart-legend">
+            <span><i class="dot income"></i> Income</span>
+            <span><i class="dot expense"></i> Expenses</span>
+        </div>
+    </div>
+}
+else
+{
+    <div class="empty-state">No monthly data available yet.</div>
+}
+
+@code {
+    [Parameter] public IEnumerable<MonthlyReport> Reports { get; set; } = [];
+    [Parameter] public string Title { get; set; } = "Monthly Overview";
+}

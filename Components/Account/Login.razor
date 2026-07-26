@@ -1,0 +1,73 @@
+@page "/Account/Login"
+@layout PersonalFinanceTracker.Components.Layout.AuthLayout
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+@inject IAuthService AuthService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Sign in - FinanceTrack</PageTitle>
+
+<div class="sidebar-brand" style="justify-content:center; border-bottom:none; padding-bottom:0;">
+    <span class="brand-icon">₹</span>
+    <div><strong>FinanceTrack</strong></div>
+</div>
+
+<h1>Sign in</h1>
+<p class="page-subtitle">Track your income, expenses, and savings.</p>
+
+@if (!string.IsNullOrEmpty(error))
+{
+    <div class="alert alert-error">@error</div>
+}
+
+<EditForm Model="Input" OnValidSubmit="LoginUser" FormName="login">
+    <DataAnnotationsValidator />
+    <div class="form-group">
+        <label>Email</label>
+        <InputText @bind-Value="Input.Email" />
+        <ValidationMessage For="() => Input.Email" />
+    </div>
+    <div class="form-group">
+        <label>Password</label>
+        <InputText type="password" @bind-Value="Input.Password" />
+        <ValidationMessage For="() => Input.Password" />
+    </div>
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Sign in</button>
+    </div>
+</EditForm>
+
+<p class="auth-footer">Don't have an account? <a href="/Account/Register">Register</a></p>
+
+@code {
+    [SupplyParameterFromForm]
+    private LoginModel Input { get; set; } = new();
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    private string? error;
+
+    private async Task LoginUser()
+    {
+        var user = await AuthService.ValidateCredentialsAsync(Input.Email, Input.Password);
+        if (user is null)
+        {
+            error = "Invalid email or password, or the account is inactive.";
+            return;
+        }
+
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new(ClaimTypes.Name, user.Name),
+            new(ClaimTypes.Email, user.Email),
+            new(ClaimTypes.Role, user.Role)
+        };
+        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
+
+        NavigationManager.NavigateTo("/", forceLoad: true);
+    }
+}
