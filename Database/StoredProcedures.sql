@@ -103,7 +103,7 @@ CREATE OR ALTER PROCEDURE dbo.usp_Account_GetAll
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT Id, UserId, Name, AccountType, Balance, CreatedAt
+    SELECT Id, UserId, Name, AccountType, InitialBalance, Balance, CreatedAt
     FROM dbo.Accounts
     WHERE UserId = @UserId
     ORDER BY Name;
@@ -116,25 +116,41 @@ CREATE OR ALTER PROCEDURE dbo.usp_Account_GetById
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT Id, UserId, Name, AccountType, Balance, CreatedAt
+    SELECT Id, UserId, Name, AccountType, InitialBalance, Balance, CreatedAt
     FROM dbo.Accounts
     WHERE Id = @Id AND UserId = @UserId;
 END
 GO
 
 CREATE OR ALTER PROCEDURE dbo.usp_Account_Insert
-    @UserId      INT,
-    @Name        NVARCHAR(100),
-    @AccountType NVARCHAR(50),
-    @Balance     DECIMAL(18,2),
-    @NewId       INT OUTPUT
+    @UserId        INT,
+    @Name          NVARCHAR(100),
+    @AccountType   NVARCHAR(50),
+    @InitialBalance DECIMAL(18,2),
+    @NewId         INT OUTPUT
 AS
 BEGIN
     SET NOCOUNT ON;
-    INSERT INTO dbo.Accounts (UserId, Name, AccountType, Balance)
-    VALUES (@UserId, @Name, @AccountType, @Balance);
+
+    INSERT INTO dbo.Accounts
+    (
+        UserId,
+        Name,
+        AccountType,
+        InitialBalance,
+        Balance
+    )
+    VALUES
+    (
+        @UserId,
+        @Name,
+        @AccountType,
+        @InitialBalance,
+        @InitialBalance
+    );
+
     SET @NewId = SCOPE_IDENTITY();
-END
+END 
 GO
 
 CREATE OR ALTER PROCEDURE dbo.usp_Account_Update
@@ -171,15 +187,29 @@ CREATE OR ALTER PROCEDURE dbo.usp_Account_RecalculateBalance
 AS
 BEGIN
     SET NOCOUNT ON;
+
     UPDATE a
-    SET Balance = ISNULL((
-        SELECT SUM(CASE WHEN t.TransactionType = 'Income' THEN t.Amount ELSE -t.Amount END)
-        FROM dbo.Transactions t
-        WHERE t.AccountId = @AccountId
-    ), 0)
+    SET Balance =
+        a.InitialBalance
+        +
+        ISNULL(
+            (
+                SELECT SUM(
+                    CASE
+                        WHEN t.TransactionType = 'Income'
+                            THEN t.Amount
+                        ELSE -t.Amount
+                    END
+                )
+                FROM dbo.Transactions t
+                WHERE t.AccountId = @AccountId
+            ),
+            0
+        )
     FROM dbo.Accounts a
     WHERE a.Id = @AccountId;
 END
+GO 
 GO
 
 -- ========== CATEGORIES ==========

@@ -33,10 +33,19 @@ SET IDENTITY_INSERT dbo.Categories OFF;
 
 SET IDENTITY_INSERT dbo.Accounts ON;
 
-INSERT INTO dbo.Accounts (Id, UserId, Name, AccountType, Balance) VALUES
-(1, 2, N'Primary Checking', N'Checking',   4250.00),
-(2, 2, N'Emergency Savings', N'Savings',   12000.00),
-(3, 2, N'Credit Card',       N'Credit',    -850.00);
+INSERT INTO dbo.Accounts
+(
+    Id,
+    UserId,
+    Name,
+    AccountType,
+    InitialBalance,
+    Balance
+)
+VALUES
+(1, 2, N'Primary Checking',   N'Checking', 4250.00, 4250.00),
+(2, 2, N'Emergency Savings',  N'Savings',  12000.00, 12000.00),
+(3, 2, N'Credit Card',        N'Credit',   -850.00,  -850.00);
 
 SET IDENTITY_INSERT dbo.Accounts OFF;
 

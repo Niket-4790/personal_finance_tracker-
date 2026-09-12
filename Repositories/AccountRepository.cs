@@ -38,7 +38,7 @@ public class AccountRepository : IAccountRepository
         parameters.Add("@UserId", account.UserId);
         parameters.Add("@Name", account.Name);
         parameters.Add("@AccountType", account.AccountType);
-        parameters.Add("@Balance", account.Balance);
+        parameters.Add("@InitialBalance", account.Balance);
         parameters.Add("@NewId", dbType: System.Data.DbType.Int32, direction: System.Data.ParameterDirection.Output);
 
         await connection.ExecuteAsync(
