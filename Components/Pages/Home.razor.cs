@@ -39,12 +39,31 @@ namespace PersonalFinanceTracker.Components.Pages
                 }
                 else
                 {
-                    var userId = int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+                    var userIdClaim = authState.User.FindFirst("AppUserId")?.Value;
+
+                    if (!int.TryParse(userIdClaim, out var userId))
+                    {
+                        throw new InvalidOperationException(
+                            "Application user ID is missing or invalid.");
+                    }
+
                     summary = await ReportService.GetDashboardSummaryAsync(userId);
-                    savingsRate = await ReportService.GetSavingsRateAsync(userId);
-                    monthlyReports = (await ReportService.GetMonthlyReportsAsync(userId, 6)).ToList();
-                    categoryBreakdown = (await ReportService.GetCategoryBreakdownAsync(userId)).ToList();
-                    recentTransactions = (await TransactionService.GetAllTransactionsAsync(userId)).Take(8).ToList();
+
+                    savingsRate =
+                        await ReportService.GetSavingsRateAsync(userId);
+
+                    monthlyReports =
+                        (await ReportService.GetMonthlyReportsAsync(userId, 6))
+                        .ToList();
+
+                    categoryBreakdown =
+                        (await ReportService.GetCategoryBreakdownAsync(userId))
+                        .ToList();
+
+                    recentTransactions =
+                        (await TransactionService.GetAllTransactionsAsync(userId))
+                        .Take(8)
+                        .ToList();
                 }
             }
             catch (Exception ex)

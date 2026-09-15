@@ -4,40 +4,57 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components;
 using PersonalFinanceTracker.Models;
 
-
 namespace PersonalFinanceTracker.Components.Account;
 
+public partial class Login
+{
+    [SupplyParameterFromForm]
+    private LoginModel Input { get; set; } = new();
 
-    public partial class Login
+    [SupplyParameterFromQuery(Name = "error")]
+    private string? Error { get; set; }
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    private string? error;
+
+    protected override void OnInitialized()
     {
-        [SupplyParameterFromForm]
-        private LoginModel Input { get; set; } = new();
-
-        [CascadingParameter]
-        private HttpContext HttpContext { get; set; } = default!;
-
-        private string? error;
-
-        private async Task LoginUser()
+        if (Error == "inactive")
         {
-            var user = await AuthService.ValidateCredentialsAsync(Input.Email, Input.Password);
-            if (user is null)
-            {
-                error = "Invalid email or password, or the account is inactive.";
-                return;
-            }
+            error = "Your account is inactive.";
+        }
+    }
 
-            var claims = new List<Claim>
+    private async Task LoginUser()
+    {
+        var user = await AuthService.ValidateCredentialsAsync(
+            Input.Email,
+            Input.Password);
+
+        if (user is null)
         {
-            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            error = "Invalid email or password, or the account is inactive.";
+            return;
+        }
+
+        var claims = new List<Claim>
+        {
+            new("AppUserId", user.Id.ToString()),
             new(ClaimTypes.Name, user.Name),
             new(ClaimTypes.Email, user.Email),
             new(ClaimTypes.Role, user.Role)
         };
-            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
 
-            NavigationManager.NavigateTo("/", forceLoad: true);
-        }
-     }
+        var identity = new ClaimsIdentity(
+            claims,
+            CookieAuthenticationDefaults.AuthenticationScheme);
 
+        await HttpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            new ClaimsPrincipal(identity));
+
+        NavigationManager.NavigateTo("/", forceLoad: true);
+    }
+}

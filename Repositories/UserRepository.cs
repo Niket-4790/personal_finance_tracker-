@@ -102,4 +102,59 @@ public class UserRepository : IUserRepository
 
         return parameters.Get<int>("@Count");
     }
+
+    public async Task<AppUser?> GetByGoogleSubjectIdAsync(
+    string googleSubjectId)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+
+        return await connection.QueryFirstOrDefaultAsync<AppUser>(
+            "dbo.usp_User_GetByGoogleSubjectId",
+            new { GoogleSubjectId = googleSubjectId },
+            commandType: System.Data.CommandType.StoredProcedure);
+    }
+
+    public async Task<int> CreateGoogleUserAsync(
+    string name,
+    string email,
+    string googleSubjectId)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+
+        var parameters = new DynamicParameters();
+
+        parameters.Add("@Name", name);
+        parameters.Add("@Email", email);
+        parameters.Add("@GoogleSubjectId", googleSubjectId);
+
+        parameters.Add(
+            "@NewId",
+            dbType: System.Data.DbType.Int32,
+            direction: System.Data.ParameterDirection.Output);
+
+        await connection.ExecuteAsync(
+            "dbo.usp_User_CreateGoogle",
+            parameters,
+            commandType: System.Data.CommandType.StoredProcedure);
+
+        return parameters.Get<int>("@NewId");
+    }
+
+    public async Task SetGoogleSubjectIdAsync(
+   int userId,
+   string googleSubjectId)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+
+        await connection.ExecuteAsync(
+            "dbo.usp_User_SetGoogleSubjectId",
+            new
+            {
+                Id = userId,
+                GoogleSubjectId = googleSubjectId
+            },
+            commandType: System.Data.CommandType.StoredProcedure);
+    }
 }
+
+

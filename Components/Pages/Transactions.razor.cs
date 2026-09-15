@@ -31,7 +31,13 @@ namespace PersonalFinanceTracker.Components.Pages
             isAdmin = authState.User.IsInRole("Admin");
             if (!isAdmin)
             {
-                currentUserId = int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+                var userIdClaim = authState.User.FindFirst("AppUserId")?.Value;
+
+                if (!int.TryParse(userIdClaim, out currentUserId))
+                {
+                    throw new InvalidOperationException(
+                        "Application user ID is missing or invalid.");
+                }
             }
 
             await LoadData();

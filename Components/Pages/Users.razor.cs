@@ -19,7 +19,13 @@ namespace PersonalFinanceTracker.Components.Pages
         protected override async Task OnInitializedAsync()
         {
             var authState = await AuthStateTask!;
-            currentUserId = int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userIdClaim = authState.User.FindFirst("AppUserId")?.Value;
+
+            if (!int.TryParse(userIdClaim, out currentUserId))
+            {
+                throw new InvalidOperationException(
+                    "Application user ID is missing or invalid.");
+            }
             await LoadData();
         }
 

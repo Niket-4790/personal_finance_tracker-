@@ -53,6 +53,10 @@ public interface IAuthService
 {
     Task RegisterAsync(RegisterModel model);
     Task<AppUser?> ValidateCredentialsAsync(string email, string password);
+    Task<AppUser?> AuthenticateGoogleAsync(
+        string googleSubjectId,
+        string name,
+        string email);
 }
 
 /// <summary>

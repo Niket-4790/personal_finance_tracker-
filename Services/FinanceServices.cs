@@ -201,13 +201,27 @@ public class AuthService : IAuthService
         await _userRepository.CreateAsync(model.Name.Trim(), email, hash, "User");
     }
 
-    public async Task<AppUser?> ValidateCredentialsAsync(string email, string password)
+    public async Task<AppUser?> ValidateCredentialsAsync(
+    string email,
+    string password)
     {
-        var credential = await _userRepository.GetByEmailWithHashAsync(email.Trim().ToLowerInvariant());
-        if (credential is null || !credential.IsActive)
-            return null;
+        var credential =
+            await _userRepository.GetByEmailWithHashAsync(
+                email.Trim().ToLowerInvariant());
 
-        var result = _passwordHasher.VerifyHashedPassword(new AppUser(), credential.PasswordHash, password);
+        if (credential is null ||
+            !credential.IsActive ||
+            string.IsNullOrEmpty(credential.PasswordHash))
+        {
+            return null;
+        }
+
+        var result =
+            _passwordHasher.VerifyHashedPassword(
+                new AppUser(),
+                credential.PasswordHash,
+                password);
+
         if (result == PasswordVerificationResult.Failed)
             return null;
 
@@ -217,7 +231,75 @@ public class AuthService : IAuthService
             Name = credential.Name,
             Email = credential.Email,
             Role = credential.Role,
-            IsActive = credential.IsActive
+            IsActive = credential.IsActive,
+            GoogleSubjectId = credential.GoogleSubjectId
+        };
+    }
+
+    public async Task<AppUser?> AuthenticateGoogleAsync(
+    string googleSubjectId,
+    string name,
+    string email)
+    {
+        googleSubjectId = googleSubjectId.Trim();
+        name = name.Trim();
+        email = email.Trim().ToLowerInvariant();
+
+        // 1. Check whether this Google account is already linked
+        var existingGoogleUser =
+            await _userRepository.GetByGoogleSubjectIdAsync(
+                googleSubjectId);
+
+        if (existingGoogleUser is not null)
+        {
+            if (!existingGoogleUser.IsActive)
+                return null;
+
+            return existingGoogleUser;
+        }
+
+        // 2. Google account is not linked yet.
+        // Check whether a local account already exists with this email.
+        var existingCredential =
+            await _userRepository.GetByEmailWithHashAsync(email);
+
+        if (existingCredential is not null)
+        {
+            if (!existingCredential.IsActive)
+                return null;
+
+            // Link this Google account to the existing local account.
+            await _userRepository.SetGoogleSubjectIdAsync(
+                existingCredential.Id,
+                googleSubjectId);
+
+            return new AppUser
+            {
+                Id = existingCredential.Id,
+                Name = existingCredential.Name,
+                Email = existingCredential.Email,
+                Role = existingCredential.Role,
+                IsActive = existingCredential.IsActive,
+                GoogleSubjectId = googleSubjectId
+            };
+        }
+
+        // 3. No existing account exists.
+        // Create a brand-new normal User account.
+        var newUserId =
+            await _userRepository.CreateGoogleUserAsync(
+                name,
+                email,
+                googleSubjectId);
+
+        return new AppUser
+        {
+            Id = newUserId,
+            Name = name,
+            Email = email,
+            Role = "User",
+            IsActive = true,
+            GoogleSubjectId = googleSubjectId
         };
     }
 }

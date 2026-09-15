@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+    <UserSecretsId>3cc49801-381a-4a40-9cce-5bf010cf4bf7</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -13,6 +14,7 @@
     <!-- Standalone PasswordHasher<T> only - no EF Core, no ASP.NET Identity storage.
          All data access, including Users, stays 100% Dapper. -->
     <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.3.1" />
+	<PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="10.0.*" />
   </ItemGroup>
 
 </Project>
