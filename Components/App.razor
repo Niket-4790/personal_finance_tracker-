@@ -16,6 +16,70 @@
     <Routes />
     <ReconnectModal />
     <script src="@Assets["_framework/blazor.web.js"]"></script>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+    <script>
+            window.openRazorpayCheckout = function (
+                keyId,
+                orderId,
+                amount,
+                name,
+                email,
+                callback
+            ) {
+                var options = {
+                    key: keyId,
+                    amount: amount,
+                    currency: "INR",
+                    name: "FinanceTrack",
+                    description: "FinanceTrack Premium",
+                    order_id: orderId,
+
+                    prefill: {
+                        name: name,
+                        email: email
+                    },
+
+                    theme: {
+                        color: "#6366f1"
+                    },
+
+                    handler: function (response) {
+                        callback.invokeMethodAsync(
+                            "HandleRazorpayPayment",
+                            response.razorpay_payment_id,
+                            response.razorpay_order_id,
+                            response.razorpay_signature
+                        );
+                    }
+                };
+
+                var razorpay =
+                    new Razorpay(options);
+
+                razorpay.open();
+            };
+    </script>
+    <script>
+    window.downloadFile = (fileName, contentType, byteArray) => {
+        const blob = new Blob([new Uint8Array(byteArray)], {
+            type: contentType
+        });
+
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = fileName;
+
+        document.body.appendChild(link);
+        link.click();
+
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+</script>
+
 </body>
 
 </html>

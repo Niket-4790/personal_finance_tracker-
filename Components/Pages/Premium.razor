@@ -1,0 +1,52 @@
+﻿@page "/premium"
+@rendermode InteractiveServer
+@attribute [Authorize]
+
+<PageTitle>Premium - FinanceTrack</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1>FinanceTrack Premium</h1>
+        <p class="page-subtitle">
+            Unlock all Premium features.
+        </p>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Premium</h2>
+
+    <p>
+        Get unlimited accounts, multiple budgets,
+        and PDF report downloads.
+    </p>
+
+    <h2>₹99</h2>
+
+    <p>One-time payment</p>
+
+    @if (isPremium)
+    {
+        <div class="alert alert-success">
+            You already have Premium access.
+        </div>
+    }
+    else
+    {
+        @if (!string.IsNullOrWhiteSpace(error))
+        {
+            <div class="alert alert-danger">
+                @error
+            </div>
+        }
+
+        <button class="btn btn-primary"
+                @onclick="StartPayment"
+                disabled="@processing">
+
+            @(processing
+                ? "Opening payment..."
+                : "Upgrade to Premium - ₹99")
+        </button>
+    }
+</div>

@@ -5,7 +5,9 @@ using PersonalFinanceTracker.Components;
 using PersonalFinanceTracker.Data;
 using PersonalFinanceTracker.Repositories;
 using PersonalFinanceTracker.Services;
+using QuestPDF.Infrastructure;
 using System.Security.Claims;
+QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -58,6 +60,8 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.ClientSecret =
             builder.Configuration["Authentication:Google:ClientSecret"]!;
 
+        //After Google successfully authenticates the user, use my application's
+        //cookie authentication scheme to sign the user in.
         options.SignInScheme =
             CookieAuthenticationDefaults.AuthenticationScheme;
 
@@ -87,7 +91,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
                 return;
             }
 
-            name ??= email;
+            name ??= email;//if name is null , use email as name
 
             var authService =
                 context.HttpContext.RequestServices
@@ -173,6 +177,11 @@ builder.Services.AddScoped<IAccountRepository, AccountRepository>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddScoped<IReportRepository, ReportRepository>();
+builder.Services.AddScoped<IBudgetRepository, BudgetRepository>();
+builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
+builder.Services.AddScoped<INotificationRepository,NotificationRepository>();
+
+
 
 // Services (business logic)
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -181,6 +190,12 @@ builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<IReportService, ReportService>();
+builder.Services.AddScoped<IBudgetService, BudgetService>();
+builder.Services.AddScoped<IReportPdfService, ReportPdfService>();
+builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<INotificationService,NotificationService>();
+builder.Services.AddScoped<IRazorpayPaymentService,RazorpayPaymentService>();
+builder.Services.AddScoped<IEmailService,EmailService>();
 
 var app = builder.Build();
 
@@ -219,5 +234,7 @@ app.MapGet("/Account/GoogleLogin", async (HttpContext context) =>
         GoogleDefaults.AuthenticationScheme,
         properties);
 });
+
+
 
 app.Run();

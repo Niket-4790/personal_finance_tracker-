@@ -2,14 +2,24 @@
 @rendermode InteractiveServer
 @attribute [Authorize]
 @inject IReportService ReportService
+@inject IReportPdfService ReportPdfService
+
 
 <PageTitle>Reports - FinanceTrack</PageTitle>
 
 <div class="page-header">
     <div>
         <h1>Reports</h1>
-        <p class="page-subtitle">@(isAdmin ? "Monthly totals and category analysis across every user" : "Monthly totals, savings rate, and category analysis")</p>
+        <p class="page-subtitle">
+            @(isAdmin
+                ? "Monthly totals and category analysis across every user"
+                : "Monthly totals, savings rate, and category analysis")
+        </p>
     </div>
+
+    <button class="btn btn-primary" @onclick="DownloadPdf">
+        Download PDF
+    </button>
 </div>
 
 @if (loading)

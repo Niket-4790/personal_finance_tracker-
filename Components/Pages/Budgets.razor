@@ -1,0 +1,176 @@
+﻿@page "/budgets"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "User")]
+
+@inject IBudgetService BudgetService
+@inject ICategoryService CategoryService
+
+<PageTitle>Budgets - FinanceTrack</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1>Budgets</h1>
+        <p class="page-subtitle">Set monthly spending limits and track your expenses</p>
+    </div>
+
+    <button class="btn btn-primary" @onclick="ShowAddForm">
+        + Add Budget
+    </button>
+</div>
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <div class="alert alert-success">@message</div>
+}
+
+@if (!string.IsNullOrEmpty(error))
+{
+    <div class="alert alert-error">@error</div>
+}
+
+<div class="panel">
+    <div class="form-group">
+        <label for="budgetMonth">Month</label>
+
+        <input id="budgetMonth"
+               type="month"
+               value="@selectedMonth.ToString("yyyy-MM")"
+               @onchange="ChangeMonth" />
+    </div>
+</div>
+
+@if (showForm)
+{
+    <div class="panel form-panel">
+        <h3>@(editingId.HasValue ? "Edit Budget" : "New Budget")</h3>
+
+        <div class="form-grid">
+
+            <div class="form-group">
+                <label>Category</label>
+
+                <select class="form-control"
+                        @bind="selectedCategoryId">
+
+                    <option value="0">Select category</option>
+
+                    @foreach (var category in expenseCategories)
+                    {
+                        <option value="@category.Id">
+                            @category.Name
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Monthly Budget</label>
+
+                <input class="form-control"
+                       type="number"
+                       step="0.01"
+                       min="0.01"
+                       @bind="budgetAmount" />
+            </div>
+
+        </div>
+
+        <div class="form-actions">
+            <button class="btn btn-primary" @onclick="SaveBudget">
+                @(editingId.HasValue ? "Update" : "Create")
+            </button>
+
+            <button class="btn" @onclick="CancelForm">
+                Cancel
+            </button>
+        </div>
+    </div>
+}
+
+<div class="panel">
+
+    @if (loading)
+    {
+        <div class="loading">Loading budgets...</div>
+    }
+    else if (budgets.Any())
+    {
+        <table class="data-table">
+
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Budget</th>
+                    <th>Spent</th>
+                    <th>Remaining</th>
+                    <th>Usage</th>
+                    <th></th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                @foreach (var budget in budgets)
+                {
+                    <tr>
+
+                        <td>
+                            <span class="badge"
+                                  style="background:@budget.CategoryColor">
+                                @budget.CategoryName
+                            </span>
+                        </td>
+
+                        <td>
+                            @budget.Amount.ToString("C")
+                        </td>
+
+                        <td class="text-expense">
+                            @budget.SpentAmount.ToString("C")
+                        </td>
+
+                        <td class="@(budget.RemainingAmount < 0 ? "text-expense" : "")">
+                            @budget.RemainingAmount.ToString("C")
+                        </td>
+
+                        <td>
+                            <div>
+                                <div class="budget-usage-text">
+                                    @budget.PercentageUsed.ToString("0.##")%
+                                </div>
+
+                                <div class="progress-bar">
+                                    <div class="progress-fill"
+                                         style="width:@GetProgressWidth(budget.PercentageUsed); background:@GetProgressColor(budget.PercentageUsed)">
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+
+                        <td class="actions">
+                            <button class="btn btn-sm"
+                                    @onclick="() => EditBudget(budget)">
+                                Edit
+                            </button>
+
+                            <button class="btn btn-sm btn-danger"
+                                    @onclick="() => DeleteBudget(budget.Id)">
+                                Delete
+                            </button>
+                        </td>
+
+                    </tr>
+                }
+
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <div class="empty-state">
+            No budgets found for @selectedMonth.ToString("MMMM yyyy").
+            Click "Add Budget" to get started.
+        </div>
+    }
+
+</div>

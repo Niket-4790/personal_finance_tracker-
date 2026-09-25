@@ -77,6 +77,9 @@ if (!int.TryParse(userIdClaim, out currentUserId))
         {
             try
             {
+                error = null;
+                message = null;
+
                 if (editingId.HasValue)
                 {
                     formModel.Id = editingId.Value;

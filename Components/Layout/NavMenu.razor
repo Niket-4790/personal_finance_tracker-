@@ -1,3 +1,9 @@
+
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@inject INotificationService NotificationService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
 <div class="sidebar">
     <div class="sidebar-brand">
         <span class="brand-icon">₹</span>
@@ -15,6 +21,20 @@
                 {
                     <NavLink href="accounts">Accounts</NavLink>
                     <NavLink href="categories">Categories</NavLink>
+                    <NavLink href="budgets">Budgets</NavLink>
+                    <NavLink href="premium">
+                        <span class="bi bi-star-fill-nav-menu" aria-hidden="true"></span>
+                        Premium
+                    </NavLink>
+<NavLink href="notifications">
+    <span class="bi bi-bell-fill-nav-menu" aria-hidden="true"></span>
+    Notifications
+
+    @if (unreadCount > 0)
+    {
+        <span class="notification-badge">@unreadCount</span>
+    }
+</NavLink>
                 }
                 <NavLink href="reports">Reports</NavLink>
                 @if (context.User.IsInRole("Admin"))
@@ -43,3 +63,24 @@
         </NotAuthorized>
     </AuthorizeView>
 </div>
+
+@code {
+    private int unreadCount;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState =
+            await AuthenticationStateProvider
+                .GetAuthenticationStateAsync();
+
+        var userIdClaim =
+            authState.User.FindFirst("AppUserId")?.Value;
+
+        if (int.TryParse(userIdClaim, out var userId))
+        {
+            unreadCount =
+                await NotificationService
+                    .GetUnreadCountAsync(userId);
+        }
+    }
+}

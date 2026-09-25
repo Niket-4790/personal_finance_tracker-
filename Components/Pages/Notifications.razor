@@ -1,0 +1,129 @@
+﻿@page "/notifications"
+@rendermode InteractiveServer
+@attribute [Authorize]
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using PersonalFinanceTracker.Models
+
+@inject INotificationService NotificationService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
+
+<PageTitle>Notifications - FinanceTrack</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1>Notifications</h1>
+        <p class="page-subtitle">Your latest notifications</p>
+    </div>
+
+    @if (notifications.Any(n => !n.IsRead))
+    {
+        <button class="btn btn-secondary" @onclick="MarkAllAsRead">
+            Mark all as read
+        </button>
+    }
+</div>
+
+@if (notifications.Count == 0)
+{
+    <div class="empty-state">
+        <h3>No notifications</h3>
+        <p>You're all caught up.</p>
+    </div>
+}
+else
+{
+    <div class="notifications-list">
+        @foreach (var notification in notifications)
+        {
+            <div class="notification-item @(notification.IsRead ? "" : "unread")"
+                 @onclick="() => MarkAsRead(notification)">
+
+                <div class="notification-content">
+             <h3>@notification.Title</h3>
+            <p>@notification.Message</p>
+
+           <small>
+        @(notification.CreatedAt.ToLocalTime().ToString("dd MMM yyyy, hh:mm tt"))
+         </small>
+</div>
+
+<button class="notification-delete"
+        @onclick="() => DeleteNotification(notification)"
+        @onclick:stopPropagation>
+    Delete
+</button>
+
+                @if (!notification.IsRead)
+                {
+                    <span class="notification-dot"></span>
+                }
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<Notification> notifications = new();
+
+    private int currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState =
+            await AuthenticationStateProvider
+                .GetAuthenticationStateAsync();
+
+        var userIdClaim =
+            authState.User.FindFirst("AppUserId")?.Value;
+
+        if (!int.TryParse(userIdClaim, out currentUserId))
+            return;
+
+        var result =
+            await NotificationService
+                .GetNotificationsAsync(currentUserId);
+
+        notifications = result.ToList();
+    }
+
+   private async Task MarkAsRead(Notification notification)
+{
+    if (notification.IsRead)
+        return;
+
+    await NotificationService.MarkAsReadAsync(
+        notification.Id,
+        currentUserId);
+
+    notification.IsRead = true;
+
+    Navigation.Refresh();
+}
+
+private async Task MarkAllAsRead()
+{
+    await NotificationService
+        .MarkAllAsReadAsync(currentUserId);
+
+    foreach (var notification in notifications)
+    {
+        notification.IsRead = true;
+    }
+
+    Navigation.Refresh();
+}
+
+private async Task DeleteNotification(Notification notification)
+{
+    await NotificationService.DeleteNotificationAsync(
+        notification.Id,
+        currentUserId);
+
+    notifications.Remove(notification);
+
+    Navigation.Refresh();
+}
+}

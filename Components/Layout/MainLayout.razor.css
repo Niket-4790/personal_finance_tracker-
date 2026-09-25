@@ -18,3 +18,12 @@
         right: 0.75rem;
         top: 0.5rem;
     }
+
+.notification-badge {
+    margin-left: 8px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-size: 12px;
+    background: #ef4444;
+    color: white;
+}
