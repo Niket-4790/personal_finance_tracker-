@@ -26,13 +26,11 @@ public class AccountService : IAccountService
     AccountFormModel model,
     int userId)
     {
-        var isPremium =
-     await _paymentService.IsPremiumAsync(userId);
+        var isPremium = await _paymentService.IsPremiumAsync(userId);
 
         if (!isPremium)
         {
-            var existingAccounts =
-                await _accountRepository.GetAllAsync(userId);
+            var existingAccounts = await _accountRepository.GetAllAsync(userId);
 
             if (existingAccounts.Count() >= 1)
             {

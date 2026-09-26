@@ -15,6 +15,8 @@ public partial class Login
     private string? Error { get; set; }
 
     [CascadingParameter]
+    //A cascading parameter in Blazor is a way for a parent component to provide a
+    //value to its child components without passing it manually through every component
     private HttpContext HttpContext { get; set; } = default!;
 
     private string? error;

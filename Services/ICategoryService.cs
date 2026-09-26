@@ -7,12 +7,8 @@ public interface ICategoryService
 {
     Task<IEnumerable<Category>> GetAllCategoriesAsync(int userId);
 
-    Task<IEnumerable<Category>> GetCategoriesByTypeAsync(
-        int userId,
-        string type);
+    Task<IEnumerable<Category>> GetCategoriesByTypeAsync( int userId, string type);
 
-    Task<int> CreateCategoryAsync(
-        Category category,
-        int userId);
+    Task<int> CreateCategoryAsync( Category category,int userId);
 }
 

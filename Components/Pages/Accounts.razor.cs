@@ -26,11 +26,11 @@ namespace PersonalFinanceTracker.Components.Pages
             var authState = await AuthStateTask!;
            var userIdClaim = authState.User.FindFirst("AppUserId")?.Value;
 
-if (!int.TryParse(userIdClaim, out currentUserId))
-{
-    throw new InvalidOperationException(
-        "Application user ID is missing or invalid.");
-}
+          if (!int.TryParse(userIdClaim, out currentUserId))
+           {
+              throw new InvalidOperationException(
+              "Application user ID is missing or invalid.");
+            }
             await LoadData();
         }
 
